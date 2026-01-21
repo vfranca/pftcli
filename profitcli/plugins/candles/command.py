@@ -1,25 +1,62 @@
-# plugins/candles/command.py
+# profitcli/plugins/candles/command.py
 import click
+from profitcli.utils.candle_aggregator import CandleAggregator
 
-def register(cli_group):
+TIMEFRAMES = {
+    "1m": 60,
+    "5m": 300,
+    "15m": 900,
+}
 
-    @cli_group.command()
-    @click.option("--symbol", required=True, help="Ativo (ex: WINJ26)")
-    @click.option("--timeframe", default="1m", help="Timeframe (ex: 1m)")
-    @click.option("--count", default=20, help="Quantidade de candles")
+def normalize_timeframe(tf: str) -> str:
+    return tf.strip().lower()
+
+def format_candle(c):
+    return (
+        f"{c.start:%H:%M} | "
+        f"Abertura {c.open:.2f} | "
+        f"Máxima {c.high:.2f} | "
+        f"Mínima {c.low:.2f} | "
+        f"Fechamento {c.close:.2f} | "
+        f"Volume {c.volume}"
+    )
+
+def register(cli):
+
+    @cli.command(name="bars")
+    @click.option("--symbol", "-s", required=True)
+    @click.option("--timeframe", "-t", default="1m", help="Ex: 1m, 5m, 15m")
     @click.pass_obj
-    def candles(app_ctx, symbol, timeframe, count):
+    def candles(app_ctx, symbol, timeframe):
         """
-        Exibe candles OHLC em formato acessível
+        Candles agregados a partir dos trades da Profit DLL
         """
-        candles = app_ctx.dll.get_candles(symbol, timeframe, count)
 
-        for c in candles:
-            click.echo(
-                f"{c.timestamp:%Y-%m-%d %H:%M} | "
-                f"O: {c.open:.3f} | "
-                f"H: {c.high:.3f} | "
-                f"L: {c.low:.3f} | "
-                f"C: {c.close:.3f} | "
-                f"V: {c.volume}"
+        tf_key = timeframe.strip().lower()
+
+        if tf_key not in TIMEFRAMES:
+            raise click.BadParameter(
+                f"timeframe inválido: {timeframe}. "
+                f"Use: {', '.join(TIMEFRAMES.keys())}"
             )
+
+        tf_sec = TIMEFRAMES[tf_key]
+
+        aggregator = CandleAggregator(tf_sec)
+
+        click.echo(
+            f"Agregando candles de {symbol} ({timeframe})"
+        )
+
+        def on_trade(trade):
+            closed = aggregator.process_trade(trade)
+            if closed:
+                click.echo(format_candle(closed))
+
+        app_ctx.trade_subscriber.subscribe(on_trade)
+
+        try:
+            while True:
+                pass
+        except KeyboardInterrupt:
+            click.echo("Encerrado.")

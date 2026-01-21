@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-profit = "profitcli.cli:cli"
+pft = "profitcli.cli:cli"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
