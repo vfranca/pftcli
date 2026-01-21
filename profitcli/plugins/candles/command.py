@@ -1,62 +1,70 @@
-# profitcli/plugins/candles/command.py
 import click
-from profitcli.utils.candle_aggregator import CandleAggregator
+from datetime import datetime
+
+from profitcli.context import AppContext, TradeEvent
+from .aggregator import CandleAggregator
+from .formatter import format_candle
 
 TIMEFRAMES = {
+    "1s": 1,
+    "5s": 5,
+    "10s": 10,
+    "30s": 30,
     "1m": 60,
     "5m": 300,
-    "15m": 900,
 }
 
-def normalize_timeframe(tf: str) -> str:
-    return tf.strip().lower()
 
-def format_candle(c):
-    return (
-        f"{c.start:%H:%M} | "
-        f"Abertura {c.open:.2f} | "
-        f"Máxima {c.high:.2f} | "
-        f"Mínima {c.low:.2f} | "
-        f"Fechamento {c.close:.2f} | "
-        f"Volume {c.volume}"
+@click.command("candles")
+@click.option(
+    "--timeframe",
+    "-t",
+    default="1m",
+    type=click.Choice(TIMEFRAMES.keys(), case_sensitive=False),
+    help="Timeframe do candle",
+)
+@click.option(
+    "--max",
+    "max_candles",
+    default=50,
+    type=int,
+    help="Número máximo de candles exibidos",
+)
+@click.pass_obj
+def candles(app_ctx: AppContext, timeframe: str, max_candles: int):
+    """
+    Exibe candles agregados por trades reais.
+    """
+    tf_sec = TIMEFRAMES[timeframe.lower()]
+    aggregator = CandleAggregator(tf_sec)
+    buffer = []
+
+    def on_trade(evt: TradeEvent):
+        now = datetime.now()
+        closed = aggregator.update(now, evt.price, evt.quantity)
+
+        if closed:
+            buffer.append(closed)
+            if len(buffer) > max_candles:
+                buffer.pop(0)
+
+            print("\n")
+            for c in buffer:
+                print(format_candle(c))
+
+    app_ctx.subscribe_trades(on_trade)
+
+    click.echo(
+        f"Candles ativos | TF={timeframe} | Ctrl+C para sair"
     )
 
-def register(cli):
+    try:
+        while True:
+            pass
+    except KeyboardInterrupt:
+        click.echo("Encerrando candles.")
 
-    @cli.command(name="bars")
-    @click.option("--symbol", "-s", required=True)
-    @click.option("--timeframe", "-t", default="1m", help="Ex: 1m, 5m, 15m")
-    @click.pass_obj
-    def candles(app_ctx, symbol, timeframe):
-        """
-        Candles agregados a partir dos trades da Profit DLL
-        """
 
-        tf_key = timeframe.strip().lower()
-
-        if tf_key not in TIMEFRAMES:
-            raise click.BadParameter(
-                f"timeframe inválido: {timeframe}. "
-                f"Use: {', '.join(TIMEFRAMES.keys())}"
-            )
-
-        tf_sec = TIMEFRAMES[tf_key]
-
-        aggregator = CandleAggregator(tf_sec)
-
-        click.echo(
-            f"Agregando candles de {symbol} ({timeframe})"
-        )
-
-        def on_trade(trade):
-            closed = aggregator.process_trade(trade)
-            if closed:
-                click.echo(format_candle(closed))
-
-        app_ctx.trade_subscriber.subscribe(on_trade)
-
-        try:
-            while True:
-                pass
-        except KeyboardInterrupt:
-            click.echo("Encerrado.")
+# 🔑 FUNÇÃO EXIGIDA PELO plugin_loader
+def register(cli_group):
+    cli_group.add_command(candles)

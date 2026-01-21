@@ -1,27 +1,66 @@
+"""
+cli.py
+
+CLI principal do profitcli.
+- cria AppContext
+- carrega plugins
+- NÃO acessa DLL diretamente
+"""
+
 import click
 
 from profitcli.context import AppContext
 from profitcli.plugin_loader import load_plugins
 
 
-@click.group()
-@click.version_option(package_name="profitcli")
+# ============================================================
+# CLI principal
+# ============================================================
+
+@click.group(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.pass_context
-def cli(ctx):
+def cli(ctx: click.Context):
     """
-    profit - CLI acessível para integração com a Profit DLL
+    profitcli
+
+    CLI extensível baseada na Profit DLL.
     """
-    # Cria e inicializa o contexto global da aplicação
-    app_ctx = AppContext()
-    app_ctx.initialize()
-
-    # Armazena no contexto do Click
-    ctx.obj = app_ctx
+    if ctx.obj is None:
+        app_ctx = AppContext()
+        app_ctx.start()
+        ctx.obj = app_ctx
 
 
-# Carrega plugins (candles, tape, etc.)
+# 🔑 AQUI é o ponto correto
 load_plugins(cli)
 
 
-if __name__ == "__main__":
+# ============================================================
+# Core commands
+# ============================================================
+
+@cli.command()
+@click.pass_obj
+def status(app_ctx: AppContext):
+    """Mostra status básico da conexão."""
+    click.echo("profitcli ativo e conectado.")
+
+
+@cli.command()
+@click.pass_obj
+def stop(app_ctx: AppContext):
+    """Finaliza a DLL."""
+    app_ctx.stop()
+    click.echo("Profit DLL finalizada.")
+
+
+# ============================================================
+# Entry point
+# ============================================================
+
+def main():
     cli()
+
+
+if __name__ == "__main__":
+    main()
