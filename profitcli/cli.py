@@ -26,12 +26,11 @@ def cli(ctx: click.Context):
     CLI extensível baseada na Profit DLL.
     """
     if ctx.obj is None:
-        app_ctx = AppContext()
-        app_ctx.start()
-        ctx.obj = app_ctx
+        # ❗ NÃO chama start aqui
+        ctx.obj = AppContext()
 
 
-# 🔑 AQUI é o ponto correto
+# 🔑 Plugins precisam ser carregados na definição do grupo
 load_plugins(cli)
 
 
@@ -43,7 +42,7 @@ load_plugins(cli)
 @click.pass_obj
 def status(app_ctx: AppContext):
     """Mostra status básico da conexão."""
-    click.echo("profitcli ativo e conectado.")
+    click.echo("profitcli ativo.")
 
 
 @cli.command()

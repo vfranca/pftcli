@@ -3,21 +3,20 @@ context.py
 
 Core do profitcli.
 Responsável por:
-- inicializar/finalizar a Profit DLL
+- inicializar/finalizar a Profit DLL (lazy)
 - registrar callbacks reais
 - expor eventos em Python puro para plugins
 """
 
 from ctypes import (
     WINFUNCTYPE,
-    POINTER,
     c_int,
     c_uint,
     c_size_t,
     byref,
 )
 from dataclasses import dataclass
-from typing import Callable, List
+from typing import Callable, List, Optional
 
 from .profitdll.profit_dll import initializeDll
 from .profitdll.profitTypes import (
@@ -26,7 +25,7 @@ from .profitdll.profitTypes import (
 )
 
 # ============================================================
-# Inicialização da DLL
+# Configuração
 # ============================================================
 
 PROFIT_DLL_PATH = "./ProfitDLL.dll"
@@ -51,11 +50,12 @@ class TradeEvent:
 class AppContext:
     """
     Contexto global do profitcli.
-    Mantém DLL viva, callbacks e listeners.
+    Inicializa a DLL SOMENTE sob demanda.
     """
 
     def __init__(self, dll_path: str = PROFIT_DLL_PATH):
-        self.dll = initializeDll(dll_path)
+        self._dll_path = dll_path
+        self.dll = None  # lazy
 
         # listeners Python
         self._trade_listeners: List[Callable[[TradeEvent], None]] = []
@@ -74,6 +74,7 @@ class AppContext:
         if self._started:
             return
 
+        self.dll = initializeDll(self._dll_path)
         self._register_callbacks()
         self._initialize_login()
 
@@ -84,6 +85,7 @@ class AppContext:
             return
 
         self.dll.DLLFinalize()
+        self.dll = None
         self._started = False
 
     # --------------------------------------------------------
@@ -91,7 +93,13 @@ class AppContext:
     # --------------------------------------------------------
 
     def subscribe_trades(self, fn: Callable[[TradeEvent], None]):
-        """Plugins chamam isso para receber trades."""
+        """
+        Plugins chamam isso para receber trades.
+        Inicializa a DLL automaticamente se necessário.
+        """
+        if not self._started:
+            self.start()
+
         self._trade_listeners.append(fn)
 
     # --------------------------------------------------------
@@ -105,7 +113,6 @@ class AppContext:
 
         @WINFUNCTYPE(None, c_int, c_int)
         def state_callback(nType, nResult):
-            # Saída simples e linear (screen reader friendly)
             if nType == 0:
                 print(f"Login: status={nResult}")
             elif nType == 1:
@@ -118,11 +125,10 @@ class AppContext:
         @WINFUNCTYPE(None, TConnectorAssetIdentifier, c_size_t, c_uint)
         def trade_callback(asset_id, p_trade, flags):
             """
-            Callback REAL conforme main.py:
+            Callback REAL conforme Profit DLL:
             SetTradeCallbackV2
             """
             is_edit = bool(flags & 1)
-
             trade = TConnectorTrade(Version=0)
 
             if self.dll.TranslateTrade(p_trade, byref(trade)):
@@ -132,7 +138,6 @@ class AppContext:
                     quantity=trade.Quantity,
                     is_edit=is_edit,
                 )
-
                 for listener in self._trade_listeners:
                     listener(evt)
 
@@ -140,7 +145,6 @@ class AppContext:
         self._cb_state = state_callback
         self._cb_trade = trade_callback
 
-        # registrar na DLL
         self.dll.SetTradeCallbackV2(self._cb_trade)
 
     # --------------------------------------------------------
