@@ -1,0 +1,7 @@
+[profit]
+key = SUA_CHAVE
+user = SEU_USUARIO
+password = SUA_SENHA
+
+[dll]
+path = C:\Profit\ProfitDLL.dll
