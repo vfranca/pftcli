@@ -1,63 +1,44 @@
-from dataclasses import dataclass
+from collections import deque
 from datetime import datetime, timedelta
-from typing import Optional
 
 
-@dataclass(slots=True)
 class Candle:
-    start: datetime
-    end: datetime
-    open: float
-    high: float
-    low: float
-    close: float
-    volume: int
+    __slots__ = ("open", "high", "low", "close", "volume", "start")
+
+    def __init__(self, price, qty, start):
+        self.open = price
+        self.high = price
+        self.low = price
+        self.close = price
+        self.volume = qty
+        self.start = start
+
+    def update(self, price, qty):
+        self.high = max(self.high, price)
+        self.low = min(self.low, price)
+        self.close = price
+        self.volume += qty
 
 
 class CandleAggregator:
-    """
-    Agregador de candles baseado em trades reais.
-    """
+    def __init__(self, timeframe_sec: int, limit: int):
+        self.tf = timedelta(seconds=timeframe_sec)
+        self.limit = limit
+        self.candles = deque(maxlen=limit)
+        self.current = None
 
-    def __init__(self, timeframe_seconds: int):
-        self.tf = timedelta(seconds=timeframe_seconds)
-        self.current: Optional[Candle] = None
+    def on_trade(self, evt):
+        ts = evt.timestamp
+        bucket = ts - timedelta(
+            seconds=ts.second % self.tf.total_seconds(),
+            microseconds=ts.microsecond,
+        )
 
-    def update(self, trade_time: datetime, price: float, qty: int) -> Optional[Candle]:
-        """
-        Atualiza o candle com um trade.
-        Retorna candle fechado se houver.
-        """
+        if self.current is None or bucket != self.current.start:
+            self.current = Candle(evt.price, evt.quantity, bucket)
+            self.candles.append(self.current)
+        else:
+            self.current.update(evt.price, evt.quantity)
 
-        if self.current is None:
-            self.current = Candle(
-                start=trade_time,
-                end=trade_time + self.tf,
-                open=price,
-                high=price,
-                low=price,
-                close=price,
-                volume=qty,
-            )
-            return None
-
-        if trade_time >= self.current.end:
-            closed = self.current
-            self.current = Candle(
-                start=trade_time,
-                end=trade_time + self.tf,
-                open=price,
-                high=price,
-                low=price,
-                close=price,
-                volume=qty,
-            )
-            return closed
-
-        # update candle atual
-        self.current.high = max(self.current.high, price)
-        self.current.low = min(self.current.low, price)
-        self.current.close = price
-        self.current.volume += qty
-
-        return None
+    def last(self):
+        return list(self.candles)

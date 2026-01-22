@@ -1,18 +1,21 @@
+"""
+plugin_loader.py
+
+Descobre e carrega plugins do profitcli.
+"""
+
 import importlib
 import pkgutil
-from profitcli import plugins
+
+import profitcli.plugins
 
 
 def load_plugins(cli_group):
-    for module in pkgutil.iter_modules(plugins.__path__):
-        try:
-            plugin = importlib.import_module(
-                f"profitcli.plugins.{module.name}.command"
-            )
-        except ModuleNotFoundError:
-            # plugin sem command.py → ignora
-            continue
+    """
+    Procura plugins e registra comandos click.
+    """
+    for _, name, _ in pkgutil.iter_modules(profitcli.plugins.__path__):
+        module = importlib.import_module(f"profitcli.plugins.{name}")
 
-        register = getattr(plugin, "register", None)
-        if callable(register):
-            register(cli_group)
+        if hasattr(module, "register"):
+            module.register(cli_group)

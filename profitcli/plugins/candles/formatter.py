@@ -1,17 +1,9 @@
-from .aggregator import Candle
-
-
-def format_candle(candle: Candle) -> str:
-    """
-    Formato simples e acessível.
-    Uma linha por candle.
-    """
-    ts = candle.start.strftime("%H:%M:%S")
+def format_candle(c):
     return (
-        f"{ts} | "
-        f"O {candle.open:.2f} "
-        f"H {candle.high:.2f} "
-        f"L {candle.low:.2f} "
-        f"C {candle.close:.2f} "
-        f"V {candle.volume}"
+        f"{c.start:%Y-%m-%d %H:%M} | "
+        f"O={c.open:.2f} "
+        f"H={c.high:.2f} "
+        f"L={c.low:.2f} "
+        f"C={c.close:.2f} "
+        f"V={c.volume}"
     )

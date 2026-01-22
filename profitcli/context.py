@@ -2,12 +2,10 @@
 context.py
 
 Core do profitcli.
-
 Responsável por:
-- carregar configuração (ENV / INI)
 - inicializar/finalizar a Profit DLL
 - registrar callbacks reais
-- expor eventos Python-friendly para plugins
+- expor eventos em Python puro para plugins
 """
 
 from ctypes import (
@@ -19,6 +17,7 @@ from ctypes import (
 )
 from dataclasses import dataclass
 from typing import Callable, List
+import time
 
 from profitcli.config import load_credentials, load_dll_path
 from profitcli.profitdll.profit_dll import initializeDll
@@ -28,7 +27,7 @@ from profitcli.profitdll.profitTypes import (
 )
 
 # ============================================================
-# Eventos Python-friendly
+# Estruturas Python-friendly
 # ============================================================
 
 @dataclass(slots=True)
@@ -36,6 +35,7 @@ class TradeEvent:
     ticker: str
     price: float
     quantity: int
+    timestamp_ns: int
     is_edit: bool
 
 
@@ -46,46 +46,25 @@ class TradeEvent:
 class AppContext:
     """
     Contexto global do profitcli.
-
-    - mantém a DLL viva
-    - registra callbacks reais
-    - redistribui eventos para plugins
+    Mantém DLL viva, callbacks e listeners.
     """
 
     def __init__(self):
-        # ----------------------------------------------------
-        # Configuração
-        # ----------------------------------------------------
-        self._dll_path = load_dll_path()
-        self._key, self._user, self._password = load_credentials()
+        dll_path = load_dll_path()
+        self.dll = initializeDll(dll_path)
 
-        if not all([self._key, self._user, self._password]):
-            raise RuntimeError(
-                "Credenciais da Profit não encontradas.\n"
-                "Defina via variáveis de ambiente ou profitcli.ini."
-            )
-
-        # ----------------------------------------------------
-        # DLL
-        # ----------------------------------------------------
-        self.dll = initializeDll(self._dll_path)
-
-        # ----------------------------------------------------
-        # Listeners (plugins)
-        # ----------------------------------------------------
+        # listeners Python
         self._trade_listeners: List[Callable[[TradeEvent], None]] = []
 
-        # ----------------------------------------------------
-        # Callbacks (referências obrigatórias)
-        # ----------------------------------------------------
+        # referências de callbacks (NÃO remover!)
         self._cb_state = None
         self._cb_trade = None
 
         self._started = False
 
-    # ========================================================
+    # --------------------------------------------------------
     # Lifecycle
-    # ========================================================
+    # --------------------------------------------------------
 
     def start(self):
         if self._started:
@@ -103,42 +82,34 @@ class AppContext:
         self.dll.DLLFinalize()
         self._started = False
 
-    # ========================================================
-    # API para plugins
-    # ========================================================
+    # --------------------------------------------------------
+    # Subscriptions (usadas por plugins)
+    # --------------------------------------------------------
 
     def subscribe_trades(self, fn: Callable[[TradeEvent], None]):
-        """
-        Plugins usam isso para receber trades em tempo real.
-        """
+        """Plugins chamam isso para receber trades."""
         self._trade_listeners.append(fn)
 
-    # ========================================================
+    # --------------------------------------------------------
     # Callbacks reais da Profit DLL
-    # ========================================================
+    # --------------------------------------------------------
 
     def _register_callbacks(self):
         """
-        Registra callbacks reais na DLL.
+        Registra TODOS os callbacks necessários.
         """
 
-        # ----------------------------
-        # Estado / Login
-        # ----------------------------
         @WINFUNCTYPE(None, c_int, c_int)
-        def state_callback(n_type, n_result):
-            if n_type == 0:
-                print(f"Login: status={n_result}")
-            elif n_type == 1:
-                print(f"Broker: status={n_result}")
-            elif n_type == 2:
-                print(f"Market: status={n_result}")
-            elif n_type == 3:
-                print(f"Ativação: status={n_result}")
+        def state_callback(nType, nResult):
+            if nType == 0:
+                print(f"Login: status={nResult}")
+            elif nType == 1:
+                print(f"Broker: status={nResult}")
+            elif nType == 2:
+                print(f"Market: status={nResult}")
+            elif nType == 3:
+                print(f"Ativação: status={nResult}")
 
-        # ----------------------------
-        # Trades (SetTradeCallbackV2)
-        # ----------------------------
         @WINFUNCTYPE(None, TConnectorAssetIdentifier, c_size_t, c_uint)
         def trade_callback(asset_id, p_trade, flags):
             is_edit = bool(flags & 1)
@@ -150,36 +121,41 @@ class AppContext:
                     ticker=asset_id.Ticker,
                     price=trade.Price,
                     quantity=trade.Quantity,
+                    timestamp_ns=time.time_ns(),
                     is_edit=is_edit,
                 )
 
                 for listener in self._trade_listeners:
                     listener(evt)
 
-        # manter referências vivas
+        # manter referências!
         self._cb_state = state_callback
         self._cb_trade = trade_callback
 
-        # registrar callbacks na DLL
         self.dll.SetTradeCallbackV2(self._cb_trade)
 
-    # ========================================================
-    # Login
-    # ========================================================
+    # --------------------------------------------------------
+    # Login não interativo
+    # --------------------------------------------------------
 
     def _initialize_login(self):
-        """
-        Login NÃO interativo.
-        """
+        key, user, password = load_credentials()
+
+        if not all([key, user, password]):
+            raise RuntimeError(
+                "Credenciais não encontradas. "
+                "Configure PROFIT_KEY / PROFIT_USER / PROFIT_PASSWORD "
+                "ou profitcli.ini"
+            )
 
         ret = self.dll.DLLInitializeLogin(
-            self._key,
-            self._user,
-            self._password,
+            key,
+            user,
+            password,
             self._cb_state,
-            None,  # broker callback
-            None,  # market callback
-            None,  # account callback
+            None,
+            None,
+            None,
             None,
             None,
             None,
