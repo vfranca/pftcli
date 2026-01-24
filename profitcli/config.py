@@ -2,8 +2,12 @@ from configparser import ConfigParser
 from pathlib import Path
 import os
 
-CONFIG_DIR = Path.cwd()
-CONFIG_FILE = CONFIG_DIR / "profitcli.ini"
+APP_NAME = "profitcli"
+
+APPDATA_DIR = Path(os.getenv("APPDATA")) / APP_NAME
+APPDATA_DIR.mkdir(parents=True, exist_ok=True)
+
+CONFIG_FILE = APPDATA_DIR / "profitcli.ini"
 
 
 def load_config():
@@ -18,10 +22,9 @@ def load_config():
 def load_credentials():
     """
     Ordem:
-    1) ENV
-    2) profitcli.ini
+    1) Variáveis de ambiente
+    2) profitcli.ini em %APPDATA%
     """
-    # ENV primeiro
     key = os.getenv("PROFIT_KEY")
     user = os.getenv("PROFIT_USER")
     password = os.getenv("PROFIT_PASSWORD")
@@ -42,10 +45,21 @@ def load_credentials():
     return None, None, None
 
 
-def load_dll_path(default="./ProfitDLL.dll"):
+def load_dll_path(default=None):
+    """
+    Retorna o caminho absoluto da ProfitDLL.
+    """
     cfg = load_config()
 
     if cfg.has_section("dll"):
-        return cfg.get("dll", "path", fallback=default)
+        path = cfg.get("dll", "path", fallback=None)
+        if path:
+            return path
 
-    return default
+    if default:
+        return default
+
+    raise FileNotFoundError(
+        "Caminho da ProfitDLL não configurado. "
+        "Defina em %APPDATA%/profitcli/profitcli.ini"
+    )
