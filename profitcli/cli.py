@@ -6,8 +6,12 @@ CLI principal do profitcli.
 
 import click
 
+from profitcli.logging import setup_logging
 from profitcli.context import AppContext
 from profitcli.plugin_loader import load_plugins
+
+
+setup_logging()
 
 
 @click.group(context_settings=dict(help_option_names=["-h", "--help"]))
