@@ -1,30 +1,67 @@
+"""
+config.py
+
+Carregamento de configuração do profitcli.
+
+Ordem de precedência:
+1) Diretório corrente (CWD)
+2) %APPDATA%/profitcli
+"""
+
 from configparser import ConfigParser
 from pathlib import Path
 import os
 
 APP_NAME = "profitcli"
 
-APPDATA_DIR = Path(os.getenv("APPDATA")) / APP_NAME
+# ---------------------------------------------------------
+# Paths
+# ---------------------------------------------------------
+
+CWD_CONFIG_FILE = Path.cwd() / "profitcli.ini"
+
+APPDATA_DIR = Path(os.getenv("APPDATA", "")) / APP_NAME
+APPDATA_CONFIG_FILE = APPDATA_DIR / "profitcli.ini"
+
 APPDATA_DIR.mkdir(parents=True, exist_ok=True)
 
-CONFIG_FILE = APPDATA_DIR / "profitcli.ini"
 
+# ---------------------------------------------------------
+# Core loader
+# ---------------------------------------------------------
 
-def load_config():
+def load_config() -> ConfigParser:
+    """
+    Carrega o arquivo profitcli.ini seguindo a ordem:
+
+    1) CWD/profitcli.ini
+    2) %APPDATA%/profitcli/profitcli.ini
+    """
     parser = ConfigParser()
 
-    if CONFIG_FILE.exists():
-        parser.read(CONFIG_FILE, encoding="utf-8")
+    if CWD_CONFIG_FILE.exists():
+        parser.read(CWD_CONFIG_FILE, encoding="utf-8")
+        return parser
 
-    return parser
+    if APPDATA_CONFIG_FILE.exists():
+        parser.read(APPDATA_CONFIG_FILE, encoding="utf-8")
+        return parser
 
+    return parser  # vazio
+
+
+# ---------------------------------------------------------
+# Credentials
+# ---------------------------------------------------------
 
 def load_credentials():
     """
     Ordem:
     1) Variáveis de ambiente
-    2) profitcli.ini em %APPDATA%
+    2) profitcli.ini (CWD)
+    3) profitcli.ini (%APPDATA%)
     """
+    # 1) ENV
     key = os.getenv("PROFIT_KEY")
     user = os.getenv("PROFIT_USER")
     password = os.getenv("PROFIT_PASSWORD")
@@ -32,6 +69,7 @@ def load_credentials():
     if key and user and password:
         return key, user, password
 
+    # 2/3) Config file
     cfg = load_config()
 
     if cfg.has_section("profit"):
@@ -45,21 +83,30 @@ def load_credentials():
     return None, None, None
 
 
-def load_dll_path(default=None):
+# ---------------------------------------------------------
+# DLL path
+# ---------------------------------------------------------
+
+def load_dll_path(default: str | None = None) -> str:
     """
-    Retorna o caminho absoluto da ProfitDLL.
+    Retorna o caminho da ProfitDLL.
+
+    Ordem:
+    1) profitcli.ini (CWD)
+    2) profitcli.ini (%APPDATA%)
+    3) default
     """
     cfg = load_config()
 
     if cfg.has_section("dll"):
         path = cfg.get("dll", "path", fallback=None)
         if path:
-            return path
+            return str(Path(path).expanduser())
 
     if default:
-        return default
+        return str(Path(default).expanduser())
 
     raise FileNotFoundError(
-        "Caminho da ProfitDLL não configurado. "
-        "Defina em %APPDATA%/profitcli/profitcli.ini"
+        "Caminho da ProfitDLL não configurado.\n"
+        "Defina em profitcli.ini (CWD ou %APPDATA%/profitcli)"
     )
