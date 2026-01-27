@@ -1,6 +1,6 @@
 [project]
 name = "profitcli"
-version = "1.0.0.dev3"
+version = "1.0.0.dev4"
 description = "CLI acessível para Profit DLL"
 authors = [
     {name = "Valmir França",email = "vfranca3@gmail.com"}
