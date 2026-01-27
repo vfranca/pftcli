@@ -6,10 +6,12 @@ Camada de serviço responsável por:
 - Realizar login
 - Registrar callbacks nativos
 - Converter eventos da DLL em eventos de domínio
+- Verificar se o login na corretora foi confirmado
 """
 
 import time
 import logging
+from threading import Event
 from ctypes import WINFUNCTYPE, c_int, c_uint, c_size_t, byref
 from typing import Callable, List
 
@@ -36,6 +38,12 @@ class ProfitService:
         # manter referências de callbacks
         self._cb_state = None
         self._cb_trade = None
+        self._cb_account = None
+
+        # estado de login
+        self._accounts = []
+        self._account_event = Event()
+        self._logged_in = False
 
         self._started = False
 
@@ -73,6 +81,23 @@ class ProfitService:
     def subscribe_trades(self, fn: Callable[[TradeEvent], None]):
         self._trade_listeners.append(fn)
 
+    def login_healthcheck(self, timeout: float = 5.0) -> bool:
+        """
+        Verifica se o login na corretora foi confirmado.
+
+        Critério:
+        - Recebimento de ao menos uma Trading Account
+        """
+        self._accounts.clear()
+        self._account_event.clear()
+
+        log.info("Aguardando confirmação de login (TradingAccount)")
+
+        received = self._account_event.wait(timeout)
+
+        self._logged_in = received and len(self._accounts) > 0
+        return self._logged_in
+
     # -------------------------------------------------
     # Callbacks
     # -------------------------------------------------
@@ -106,10 +131,19 @@ class ProfitService:
                 for listener in self._trade_listeners:
                     listener(evt)
 
+        # ⚠️ Callback conceitual — ajuste para o callback real de TradingAccount
+        @WINFUNCTYPE(None, c_int)
+        def trading_account_callback(account_id):
+            log.info("TradingAccount recebida: %s", account_id)
+            self._accounts.append(account_id)
+            self._account_event.set()
+
         self._cb_state = state_callback
         self._cb_trade = trade_callback
+        self._cb_account = trading_account_callback
 
         self._dll.SetTradeCallbackV2(self._cb_trade)
+        # self._dll.SetTradingAccountCallback(self._cb_account)
 
     # -------------------------------------------------
     # Login

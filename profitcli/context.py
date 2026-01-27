@@ -6,6 +6,7 @@ Application Context do profitcli.
 Responsável por:
 - Inicializar e finalizar serviços
 - Expor API de alto nível para controllers/plugins
+- Expor estado de conexão/login
 """
 
 import logging
@@ -29,6 +30,7 @@ class AppContext:
     def __init__(self):
         self._profit = ProfitService()
         self._started = False
+        self.logged_in: bool = False
 
     # ---------------------------------------------
     # Lifecycle
@@ -39,7 +41,18 @@ class AppContext:
             return
 
         log.info("Iniciando AppContext")
+
+        # inicia DLL + login
         self._profit.start()
+
+        # 🔑 healthcheck de login
+        self.logged_in = self._profit.login_healthcheck()
+
+        if self.logged_in:
+            log.info("Login na corretora confirmado")
+        else:
+            log.warning("Login na corretora NÃO confirmado")
+
         self._started = True
 
     def stop(self):
@@ -59,3 +72,4 @@ class AppContext:
         Permite que plugins recebam eventos de trade.
         """
         self._profit.subscribe_trades(fn)
+

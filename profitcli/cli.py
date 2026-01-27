@@ -36,8 +36,11 @@ load_plugins(cli)
 @cli.command()
 @click.pass_obj
 def status(app_ctx: AppContext):
-    """Mostra status básico da conexão."""
-    click.echo("profitcli ativo e conectado.")
+    """Mostra status da conexão com a corretora."""
+    if app_ctx.logged_in:
+        click.echo("✅ Conectado à corretora")
+    else:
+        click.echo("❌ NÃO conectado à corretora")
 
 
 @cli.command()
