@@ -11,6 +11,7 @@ from ctypes import (
     c_int,
     c_uint,
     c_size_t,
+    c_longlong,
     byref,
 )
 from typing import Callable, List
@@ -33,7 +34,8 @@ class ProfitService:
         self._trade_listeners: List[Callable[[TradeEvent], None]] = []
 
         self._cb_state = None
-        self._cb_trade = None
+        self._cb_trade_rt = None
+        self._cb_trade_hist = None
 
         self._accounts: list[TConnectorTradingAccountOut] = []
         self._logged_in = False
@@ -70,6 +72,42 @@ class ProfitService:
 
     def subscribe_trades(self, fn: Callable[[TradeEvent], None]):
         self._trade_listeners.append(fn)
+
+    def request_historical_trades(
+        self,
+        ticker: str,
+        start_ts_ms: int,
+        end_ts_ms: int,
+    ):
+        """
+        Solicita trades históricos (tick-by-tick).
+
+        Parameters
+        ----------
+        ticker : str
+            Código do ativo.
+        start_ts_ms : int
+            Timestamp inicial em epoch milliseconds.
+        end_ts_ms : int
+            Timestamp final em epoch milliseconds.
+        """
+        if not self._market_ready:
+            raise RuntimeError("Mercado ainda não está pronto")
+
+        asset = TConnectorAssetIdentifier()
+        asset.Ticker = ticker.encode("ascii")
+
+        ret = self._dll.GetHistoryTrades(
+            byref(asset),
+            c_longlong(start_ts_ms),
+            c_longlong(end_ts_ms),
+        )
+
+        log.info(
+            "Requisição de histórico enviada | ticker=%s ret=%s",
+            ticker,
+            ret,
+        )
 
     def login_healthcheck(self, timeout_sec: float = 5.0) -> bool:
         """
@@ -122,13 +160,12 @@ class ProfitService:
         def state_callback(nType, nResult):
             log.info("Estado DLL | type=%s result=%s", nType, nResult)
 
-            # type 2 = estado do mercado
             if nType == 2 and nResult == 4:
                 log.info("Mercado pronto (market_state=4)")
                 self._market_ready = True
 
         @WINFUNCTYPE(None, TConnectorAssetIdentifier, c_size_t, c_uint)
-        def trade_callback(asset_id, p_trade, flags):
+        def trade_callback_rt(asset_id, p_trade, flags):
             trade = TConnectorTrade(Version=0)
             is_edit = bool(flags & 1)
 
@@ -139,14 +176,33 @@ class ProfitService:
                     quantity=trade.Quantity,
                     timestamp_ns=time.time_ns(),
                     is_edit=is_edit,
+                    is_historical=False,
+                )
+                for listener in self._trade_listeners:
+                    listener(evt)
+
+        @WINFUNCTYPE(None, TConnectorAssetIdentifier, c_size_t, c_uint)
+        def trade_callback_history(asset_id, p_trade, flags):
+            trade = TConnectorTrade(Version=0)
+
+            if self._dll.TranslateTrade(p_trade, byref(trade)):
+                evt = TradeEvent(
+                    ticker=asset_id.Ticker,
+                    price=trade.Price,
+                    quantity=trade.Quantity,
+                    timestamp_ns=trade.Timestamp * 1_000_000,
+                    is_edit=False,
+                    is_historical=True,
                 )
                 for listener in self._trade_listeners:
                     listener(evt)
 
         self._cb_state = state_callback
-        self._cb_trade = trade_callback
+        self._cb_trade_rt = trade_callback_rt
+        self._cb_trade_hist = trade_callback_history
 
-        self._dll.SetTradeCallbackV2(self._cb_trade)
+        self._dll.SetTradeCallbackV2(self._cb_trade_rt)
+        self._dll.SetHistoryTradeCallback(self._cb_trade_hist)
 
     # -------------------------------------------------
     # Login

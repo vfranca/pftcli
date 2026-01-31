@@ -41,5 +41,17 @@ class AppContext:
     def subscribe_trades(self, fn: Callable[[TradeEvent], None]):
         self._profit.subscribe_trades(fn)
 
+    def request_historical_trades(
+        self,
+        ticker: str,
+        start_ts_ms: int,
+        end_ts_ms: int,
+    ):
+        self._profit.request_historical_trades(
+            ticker,
+            start_ts_ms,
+            end_ts_ms,
+        )
+
     def is_connected(self) -> bool:
         return self._profit.login_healthcheck()

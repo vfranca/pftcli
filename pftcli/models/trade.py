@@ -21,12 +21,15 @@ class TradeEvent:
     quantity : int
         Quantidade negociada.
     timestamp_ns : int
-        Timestamp monotônico no momento do recebimento.
+        Timestamp do trade em nanossegundos.
     is_edit : bool
         Indica se o trade é uma edição.
+    is_historical : bool
+        Indica se o trade é histórico (True) ou realtime (False).
     """
     ticker: str
     price: float
     quantity: int
     timestamp_ns: int
-    is_edit: bool
+    is_edit: bool = False
+    is_historical: bool = False
