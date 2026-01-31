@@ -1,7 +1,8 @@
 """
 View do Tape.
 
-Responsável exclusivamente pela saída textual acessível.
+Responsável exclusivamente pela saída textual
+linear e acessível (stdout).
 """
 
 import logging
@@ -12,7 +13,7 @@ logger = logging.getLogger("profitcli.tape.view")
 
 class TapeView:
     """
-    Renderização linear do tape (stdout).
+    Renderização do tape (Times & Trades).
     """
 
     def __init__(self, show_side: bool = True):
@@ -24,13 +25,13 @@ class TapeView:
 
         Espera que evt possua:
         - timestamp (epoch)
-        - ticker
-        - quantity
-        - price
+        - ticker (str)
+        - quantity (int)
+        - price (float | int)
         """
-        ts = datetime.fromtimestamp(evt.timestamp).strftime(
-            "%H:%M:%S.%f"
-        )[:-3]
+        ts = datetime.fromtimestamp(
+            evt.timestamp
+        ).strftime("%H:%M:%S.%f")[:-3]
 
         side = "BUY" if evt.quantity > 0 else "SELL"
         qty = abs(evt.quantity)
@@ -43,3 +44,10 @@ class TapeView:
         parts.append(f"{qty} @ {evt.price}")
 
         return " ".join(parts)
+
+    def render_replay(self, trades):
+        """
+        Gera saída textual de replay do buffer.
+        """
+        for evt in trades:
+            yield self.render_trade(evt)

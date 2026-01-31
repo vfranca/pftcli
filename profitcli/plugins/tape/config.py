@@ -13,10 +13,17 @@ from profitcli.config import load_config
 ENV_PREFIX = "PROFITCLI_TAPE_"
 
 
-def load_tape_config():
+def load_tape_config() -> dict:
+    """
+    Carrega configurações do plugin tape.
+
+    Variáveis suportadas:
+    - PROFITCLI_TAPE_LIMIT
+    - PROFITCLI_TAPE_SHOW_SIDE
+    """
     cfg = load_config()
 
-    def env(key, default=None):
+    def env(key: str, default=None):
         return os.getenv(f"{ENV_PREFIX}{key}", default)
 
     limit = int(
