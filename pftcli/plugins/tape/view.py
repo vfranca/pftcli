@@ -8,7 +8,7 @@ linear e acessível (stdout).
 import logging
 from datetime import datetime
 
-logger = logging.getLogger("profitcli.tape.view")
+logger = logging.getLogger("pftcli.tape.view")
 
 
 class TapeView:

@@ -1,4 +1,3 @@
-# core/login.py
 import time
 from .state import login_state
 

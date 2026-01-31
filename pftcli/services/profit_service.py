@@ -15,16 +15,16 @@ from ctypes import (
 )
 from typing import Callable, List
 
-from profitcli.config import load_credentials, load_dll_path
-from profitcli.models.trade import TradeEvent
-from profitcli.profitdll.profit_dll import initializeDll
-from profitcli.profitdll.profitTypes import (
+from pftcli.config import load_credentials, load_dll_path
+from pftcli.models.trade import TradeEvent
+from pftcli.profitdll.profit_dll import initializeDll
+from pftcli.profitdll.profitTypes import (
     TConnectorTrade,
     TConnectorAssetIdentifier,
     TConnectorTradingAccountOut,
 )
 
-log = logging.getLogger("profitcli.service")
+log = logging.getLogger("pftcli.service")
 
 
 class ProfitService:

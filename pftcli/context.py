@@ -1,16 +1,16 @@
 """
 context.py
 
-Application Context do profitcli.
+Application Context do pftcli.
 """
 
 import logging
 from typing import Callable
 
-from profitcli.models.trade import TradeEvent
-from profitcli.services.profit_service import ProfitService
+from pftcli.models.trade import TradeEvent
+from pftcli.services.profit_service import ProfitService
 
-log = logging.getLogger("profitcli.context")
+log = logging.getLogger("pftcli.context")
 
 
 class AppContext:

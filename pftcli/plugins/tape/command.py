@@ -11,7 +11,7 @@ from .config import load_tape_config
 from .model import TapeModel
 from .view import TapeView
 
-logger = logging.getLogger("profitcli.tape")
+logger = logging.getLogger("pftcli.tape")
 
 
 @click.command()

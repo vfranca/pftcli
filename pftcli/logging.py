@@ -1,7 +1,7 @@
 """
 logging.py
 
-Configuração centralizada de logging do profitcli.
+Configuração centralizada de logging do pftcli.
 """
 
 import logging
@@ -14,23 +14,23 @@ def _get_appdata_dir() -> Path:
     Retorna o diretório base de dados da aplicação.
 
     Windows:
-      %APPDATA%\\profitcli
+      %APPDATA%\\pftcli
 
     Fallback (caso raro):
-      ~/.profitcli
+      ~/.pftcli
     """
     appdata = os.getenv("APPDATA")
 
     if appdata:
-        return Path(appdata) / "profitcli"
+        return Path(appdata) / "pftcli"
 
     # Fallback seguro (Linux / ambiente estranho)
-    return Path.home() / ".profitcli"
+    return Path.home() / ".pftcli"
 
 
 APP_DIR = _get_appdata_dir()
 LOG_DIR = APP_DIR / "logs"
-LOG_FILE = LOG_DIR / "profitcli.log"
+LOG_FILE = LOG_DIR / "pftcli.log"
 
 
 def setup_logging(level=logging.INFO):
@@ -38,7 +38,7 @@ def setup_logging(level=logging.INFO):
     Configura logging SOMENTE em arquivo.
 
     - Nenhum log no console
-    - Arquivo único em %APPDATA%\\profitcli\\logs
+    - Arquivo único em %APPDATA%\\pftcli\\logs
     """
 
     LOG_DIR.mkdir(parents=True, exist_ok=True)

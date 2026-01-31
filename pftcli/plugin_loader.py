@@ -1,16 +1,16 @@
 """
 plugin_loader.py
 
-Descobre e carrega plugins internos e externos do profitcli.
+Descobre e carrega plugins internos e externos do pftcli.
 """
 
 import importlib
 import logging
 import pkgutil
 
-import profitcli.plugins
+import pftcli.plugins
 
-logger = logging.getLogger("profitcli.plugin_loader")
+logger = logging.getLogger("pftcli.plugin_loader")
 
 
 def load_plugins(cli_group):
@@ -29,9 +29,9 @@ def load_plugins(cli_group):
 
 
 def _load_internal_plugins(cli_group):
-    """Carrega plugins internos (profitcli.plugins.*)."""
-    for _, name, _ in pkgutil.iter_modules(profitcli.plugins.__path__):
-        module_name = f"profitcli.plugins.{name}"
+    """Carrega plugins internos (pftcli.plugins.*)."""
+    for _, name, _ in pkgutil.iter_modules(pftcli.plugins.__path__):
+        module_name = f"pftcli.plugins.{name}"
 
         try:
             module = importlib.import_module(module_name)
@@ -51,7 +51,7 @@ def _load_external_plugins(cli_group):
     except ImportError:
         return
 
-    eps = entry_points(group="profitcli.plugins")
+    eps = entry_points(group="pftcli.plugins")
 
     for ep in eps:
         try:

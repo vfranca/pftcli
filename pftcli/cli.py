@@ -1,24 +1,24 @@
 """
 cli.py
 
-CLI principal do profitcli.
+CLI principal do pftcli.
 """
 
 import click
 
-from profitcli.logging import setup_logging
-from profitcli.context import AppContext
-from profitcli.plugin_loader import load_plugins
+from pftcli.logging import setup_logging
+from pftcli.context import AppContext
+from pftcli.plugin_loader import load_plugins
 
 setup_logging()
 
 
 @click.group(context_settings=dict(help_option_names=["-h", "--help"]))
-@click.version_option(package_name="profitcli")
+@click.version_option(package_name="pftcli")
 @click.pass_context
 def cli(ctx: click.Context):
     """
-    profitcli
+    pftcli
 
     CLI extensível baseada na Profit DLL.
     """

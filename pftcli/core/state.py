@@ -1,4 +1,3 @@
-# core/state.py
 from threading import Event
 
 login_state = {

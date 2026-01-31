@@ -1,18 +1,36 @@
 [project]
-name = "profitcli"
-version = "1.0.0.dev5"
-description = "CLI acessível para Profit DLL"
-authors = [
-    {name = "Valmir França",email = "vfranca3@gmail.com"}
-]
+name = "pftcli"
+version = "1.0.0.dev0"
+description = "CLI acessível para automação de trading"
 readme = "README.md"
 requires-python = ">=3.13"
+
+authors = [
+  { name = "Valmir França", email = "vfranca3@gmail.com" }
+]
+
+license = "GPL-3.0-or-later"
+
+license-files = ["LICENSE"]
+
+keywords = ["trading", "cli", "automation", "market", "broker"]
+
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.13",
+  "Operating System :: Microsoft :: Windows"
+]
+
 dependencies = [
-    "click (>=8.3.1,<9.0.0)"
+  "click>=8.3.1,<9.0.0"
 ]
 
 [project.scripts]
-pft = "profitcli.cli:cli"
+pft = "pftcli.cli:cli"
+pftcli = "pftcli.cli:cli"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

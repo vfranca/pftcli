@@ -1,27 +1,27 @@
 """
 config.py
 
-Carregamento de configuração do profitcli.
+Carregamento de configuração do pftcli.
 
 Ordem de precedência:
 1) Diretório corrente (CWD)
-2) %APPDATA%/profitcli
+2) %APPDATA%/pftcli
 """
 
 from configparser import ConfigParser
 from pathlib import Path
 import os
 
-APP_NAME = "profitcli"
+APP_NAME = "pftcli"
 
 # ---------------------------------------------------------
 # Paths
 # ---------------------------------------------------------
 
-CWD_CONFIG_FILE = Path.cwd() / "profitcli.ini"
+CWD_CONFIG_FILE = Path.cwd() / "pftcli.ini"
 
 APPDATA_DIR = Path(os.getenv("APPDATA", "")) / APP_NAME
-APPDATA_CONFIG_FILE = APPDATA_DIR / "profitcli.ini"
+APPDATA_CONFIG_FILE = APPDATA_DIR / "pftcli.ini"
 
 APPDATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -32,10 +32,10 @@ APPDATA_DIR.mkdir(parents=True, exist_ok=True)
 
 def load_config() -> ConfigParser:
     """
-    Carrega o arquivo profitcli.ini seguindo a ordem:
+    Carrega o arquivo pftcli.ini seguindo a ordem:
 
-    1) CWD/profitcli.ini
-    2) %APPDATA%/profitcli/profitcli.ini
+    1) CWD/pftcli.ini
+    2) %APPDATA%/pftcli/pftcli.ini
     """
     parser = ConfigParser()
 
@@ -58,8 +58,8 @@ def load_credentials():
     """
     Ordem:
     1) Variáveis de ambiente
-    2) profitcli.ini (CWD)
-    3) profitcli.ini (%APPDATA%)
+    2) pftcli.ini (CWD)
+    3) pftcli.ini (%APPDATA%)
     """
     # 1) ENV
     key = os.getenv("PROFIT_KEY")
@@ -92,8 +92,8 @@ def load_dll_path(default: str | None = None) -> str:
     Retorna o caminho da ProfitDLL.
 
     Ordem:
-    1) profitcli.ini (CWD)
-    2) profitcli.ini (%APPDATA%)
+    1) pftcli.ini (CWD)
+    2) pftcli.ini (%APPDATA%)
     3) default
     """
     cfg = load_config()
@@ -108,5 +108,5 @@ def load_dll_path(default: str | None = None) -> str:
 
     raise FileNotFoundError(
         "Caminho da ProfitDLL não configurado.\n"
-        "Defina em profitcli.ini (CWD ou %APPDATA%/profitcli)"
+        "Defina em pftcli.ini (CWD ou %APPDATA%/pftcli)"
     )

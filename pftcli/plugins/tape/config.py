@@ -3,14 +3,14 @@ Configurações do plugin tape.
 
 Ordem de precedência:
 1) Variáveis de ambiente
-2) profitcli.ini
+2) pftcli.ini
 3) Defaults
 """
 
 import os
-from profitcli.config import load_config
+from pftcli.config import load_config
 
-ENV_PREFIX = "PROFITCLI_TAPE_"
+ENV_PREFIX = "pftcli_TAPE_"
 
 
 def load_tape_config() -> dict:
@@ -18,8 +18,8 @@ def load_tape_config() -> dict:
     Carrega configurações do plugin tape.
 
     Variáveis suportadas:
-    - PROFITCLI_TAPE_LIMIT
-    - PROFITCLI_TAPE_SHOW_SIDE
+    - pftcli_TAPE_LIMIT
+    - pftcli_TAPE_SHOW_SIDE
     """
     cfg = load_config()
 

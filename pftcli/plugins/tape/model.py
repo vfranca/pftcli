@@ -9,7 +9,7 @@ Responsável por:
 
 import logging
 
-logger = logging.getLogger("profitcli.tape.model")
+logger = logging.getLogger("pftcli.tape.model")
 
 
 class TapeModel:

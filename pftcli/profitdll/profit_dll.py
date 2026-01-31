@@ -1,5 +1,5 @@
 from ctypes import POINTER, WinDLL, c_double, c_int, c_int64, c_long, c_longlong, c_size_t, c_ubyte, c_wchar_p
-from profitcli.profitdll.profitTypes import *
+from pftcli.profitdll.profitTypes import *
 
 def initializeDll(path: str) -> WinDLL:
     profit_dll = WinDLL(path)

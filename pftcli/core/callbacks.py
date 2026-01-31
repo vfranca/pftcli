@@ -1,4 +1,3 @@
-# core/callbacks.py
 from .state import login_state
 
 def on_trading_account(account):
