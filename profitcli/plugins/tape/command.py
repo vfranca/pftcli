@@ -1,6 +1,17 @@
+"""
+Controller do plugin tape.
+
+Integra CLI (click), model e view.
+"""
+
+import logging
 import click
 
-from .formatter import format_trade
+from .config import load_tape_config
+from .model import TapeModel
+from .view import TapeView
+
+logger = logging.getLogger("profitcli.tape")
 
 
 @click.command()
@@ -8,7 +19,6 @@ from .formatter import format_trade
 @click.option(
     "-n",
     "--limit",
-    default=50,
     type=int,
     help="Quantidade máxima de trades exibidos (buffer)",
 )
@@ -16,26 +26,38 @@ from .formatter import format_trade
 def tape(app_ctx, ticker, limit):
     """
     Exibe o tape (times & trades) em tempo real.
+
     Um trade por linha, em ordem cronológica.
     """
+    cfg = load_tape_config()
 
-    buffer = []
+    effective_limit = limit or cfg["limit"]
+
+    model = TapeModel(
+        ticker=ticker,
+        limit=effective_limit,
+    )
+
+    view = TapeView(
+        show_side=cfg["show_side"]
+    )
 
     def on_trade(evt):
-        if evt.ticker != ticker:
-            return
+        trade = model.on_trade(evt)
+        if trade:
+            click.echo(view.render_trade(trade))
 
-        buffer.append(evt)
-
-        # mantém buffer limitado
-        if len(buffer) > limit:
-            buffer.pop(0)
-
-        click.echo(format_trade(evt))
+    logger.info(
+        "Tape iniciado | ticker=%s limit=%s",
+        ticker,
+        effective_limit,
+    )
 
     app_ctx.subscribe_trades(on_trade)
 
-    click.echo(f"Tape ativo | {ticker} | buffer={limit}")
+    click.echo(
+        f"Tape ativo | {ticker} | buffer={effective_limit}"
+    )
 
     # mantém processo vivo
     click.get_current_context().exit_on_close = False
