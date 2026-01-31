@@ -1,18 +1,18 @@
 """
 services.profit_service
 
-Camada de serviço responsável por:
-- Inicializar a Profit DLL
-- Realizar login
-- Registrar callbacks nativos
-- Converter eventos da DLL em eventos de domínio
-- Verificar se o login na corretora foi confirmado
+Integração com a Profit DLL.
 """
 
 import time
 import logging
-from threading import Event
-from ctypes import WINFUNCTYPE, c_int, c_uint, c_size_t, byref
+from ctypes import (
+    WINFUNCTYPE,
+    c_int,
+    c_uint,
+    c_size_t,
+    byref,
+)
 from typing import Callable, List
 
 from profitcli.config import load_credentials, load_dll_path
@@ -21,30 +21,23 @@ from profitcli.profitdll.profit_dll import initializeDll
 from profitcli.profitdll.profitTypes import (
     TConnectorTrade,
     TConnectorAssetIdentifier,
+    TConnectorTradingAccountOut,
 )
 
 log = logging.getLogger("profitcli.service")
 
 
 class ProfitService:
-    """
-    Serviço de integração com a Profit DLL.
-    """
-
     def __init__(self):
         self._dll = None
         self._trade_listeners: List[Callable[[TradeEvent], None]] = []
 
-        # manter referências de callbacks
         self._cb_state = None
         self._cb_trade = None
-        self._cb_account = None
 
-        # estado de login
-        self._accounts = []
-        self._account_event = Event()
+        self._accounts: list[TConnectorTradingAccountOut] = []
         self._logged_in = False
-
+        self._market_ready = False
         self._started = False
 
     # -------------------------------------------------
@@ -59,55 +52,80 @@ class ProfitService:
         log.info("Inicializando Profit DLL: %s", dll_path)
 
         self._dll = initializeDll(dll_path)
-
         self._register_callbacks()
         self._login()
 
         self._started = True
-        log.info("ProfitService iniciado")
 
     def stop(self):
         if not self._started:
             return
 
-        log.info("Finalizando Profit DLL")
         self._dll.DLLFinalize()
         self._started = False
 
     # -------------------------------------------------
-    # Public API (usada pelo Context)
+    # API pública
     # -------------------------------------------------
 
     def subscribe_trades(self, fn: Callable[[TradeEvent], None]):
         self._trade_listeners.append(fn)
 
-    def login_healthcheck(self, timeout: float = 5.0) -> bool:
+    def login_healthcheck(self, timeout_sec: float = 5.0) -> bool:
         """
-        Verifica se o login na corretora foi confirmado.
-
-        Critério:
-        - Recebimento de ao menos uma Trading Account
+        Login só é considerado OK quando:
+        - DLL sinalizou market_state == 4
+        - GetAccountCount() > 0
         """
+        deadline = time.time() + timeout_sec
         self._accounts.clear()
-        self._account_event.clear()
 
-        log.info("Aguardando confirmação de login (TradingAccount)")
+        while time.time() < deadline:
+            if not self._market_ready:
+                time.sleep(0.1)
+                continue
 
-        received = self._account_event.wait(timeout)
+            try:
+                count = self._dll.GetAccountCount()
+            except Exception as exc:
+                log.error("Erro ao consultar contas: %s", exc)
+                break
 
-        self._logged_in = received and len(self._accounts) > 0
-        return self._logged_in
+            if count > 0:
+                accounts = (TConnectorTradingAccountOut * count)()
+                filled = self._dll.GetAccounts(accounts, count)
+
+                for i in range(filled):
+                    acc = accounts[i]
+                    self._accounts.append(acc)
+                    log.info(
+                        "Conta ativa | Broker=%s Conta=%s SubConta=%s",
+                        acc.AccountID.BrokerID,
+                        acc.AccountID.AccountID,
+                        acc.AccountID.SubAccountID,
+                    )
+
+                self._logged_in = True
+                return True
+
+            time.sleep(0.2)
+
+        self._logged_in = False
+        return False
 
     # -------------------------------------------------
     # Callbacks
     # -------------------------------------------------
 
     def _register_callbacks(self):
-        log.info("Registrando callbacks")
-
         @WINFUNCTYPE(None, c_int, c_int)
         def state_callback(nType, nResult):
             log.info("Estado DLL | type=%s result=%s", nType, nResult)
+
+            # type 2 = estado do mercado
+            if nType == 2 and nResult == 4:
+                log.info("Mercado pronto (market_state=4)")
+                self._market_ready = True
 
         @WINFUNCTYPE(None, TConnectorAssetIdentifier, c_size_t, c_uint)
         def trade_callback(asset_id, p_trade, flags):
@@ -122,28 +140,13 @@ class ProfitService:
                     timestamp_ns=time.time_ns(),
                     is_edit=is_edit,
                 )
-
-                log.debug(
-                    "Trade recebido %s %s %s",
-                    evt.ticker, evt.price, evt.quantity
-                )
-
                 for listener in self._trade_listeners:
                     listener(evt)
 
-        # ⚠️ Callback conceitual — ajuste para o callback real de TradingAccount
-        @WINFUNCTYPE(None, c_int)
-        def trading_account_callback(account_id):
-            log.info("TradingAccount recebida: %s", account_id)
-            self._accounts.append(account_id)
-            self._account_event.set()
-
         self._cb_state = state_callback
         self._cb_trade = trade_callback
-        self._cb_account = trading_account_callback
 
         self._dll.SetTradeCallbackV2(self._cb_trade)
-        # self._dll.SetTradingAccountCallback(self._cb_account)
 
     # -------------------------------------------------
     # Login
@@ -153,12 +156,7 @@ class ProfitService:
         key, user, password = load_credentials()
 
         if not all([key, user, password]):
-            raise RuntimeError(
-                "Credenciais não encontradas "
-                "(ENV ou profitcli.ini)"
-            )
-
-        log.info("Realizando login na Profit DLL")
+            raise RuntimeError("Credenciais não encontradas")
 
         ret = self._dll.DLLInitializeLogin(
             key,

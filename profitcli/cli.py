@@ -10,7 +10,6 @@ from profitcli.logging import setup_logging
 from profitcli.context import AppContext
 from profitcli.plugin_loader import load_plugins
 
-
 setup_logging()
 
 
@@ -29,7 +28,7 @@ def cli(ctx: click.Context):
         ctx.obj = app_ctx
 
 
-# 🔑 plugins são carregados NO TOPO, não dentro do callback
+# plugins carregados no topo
 load_plugins(cli)
 
 
@@ -37,10 +36,10 @@ load_plugins(cli)
 @click.pass_obj
 def status(app_ctx: AppContext):
     """Mostra status da conexão com a corretora."""
-    if app_ctx.logged_in:
-        click.echo("✅ Conectado à corretora")
+    if app_ctx.is_connected():
+        click.echo("conectado a corretora")
     else:
-        click.echo("❌ NÃO conectado à corretora")
+        click.echo("nao conectado a corretora")
 
 
 @cli.command()
