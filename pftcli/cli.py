@@ -10,6 +10,7 @@ from pftcli.logging import setup_logging
 from pftcli.context import AppContext
 from pftcli.plugin_loader import load_plugins
 
+# inicializa logging global
 setup_logging()
 
 
@@ -28,14 +29,16 @@ def cli(ctx: click.Context):
         ctx.obj = app_ctx
 
 
-# plugins carregados no topo
+# plugins carregados no topo (registram comandos)
 load_plugins(cli)
 
 
 @cli.command()
 @click.pass_obj
 def status(app_ctx: AppContext):
-    """Mostra status da conexão com a corretora."""
+    """
+    Mostra status da conexão com a corretora.
+    """
     if app_ctx.is_connected():
         click.echo("conectado a corretora")
     else:
@@ -45,7 +48,9 @@ def status(app_ctx: AppContext):
 @cli.command()
 @click.pass_obj
 def stop(app_ctx: AppContext):
-    """Finaliza a DLL."""
+    """
+    Finaliza a Profit DLL.
+    """
     app_ctx.stop()
     click.echo("Profit DLL finalizada.")
 

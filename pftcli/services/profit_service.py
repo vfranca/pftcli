@@ -13,6 +13,8 @@ from ctypes import (
     c_size_t,
     c_longlong,
     byref,
+    memset,
+    sizeof,
 )
 from typing import Callable, List
 
@@ -41,6 +43,11 @@ class ProfitService:
         self._logged_in = False
         self._market_ready = False
         self._started = False
+
+        # ---- diagnóstico em tempo real
+        self._last_state_type = None
+        self._last_state_result = None
+        self._last_account_count = 0
 
     # -------------------------------------------------
     # Lifecycle
@@ -79,23 +86,12 @@ class ProfitService:
         start_ts_ms: int,
         end_ts_ms: int,
     ):
-        """
-        Solicita trades históricos (tick-by-tick).
-
-        Parameters
-        ----------
-        ticker : str
-            Código do ativo.
-        start_ts_ms : int
-            Timestamp inicial em epoch milliseconds.
-        end_ts_ms : int
-            Timestamp final em epoch milliseconds.
-        """
         if not self._market_ready:
             raise RuntimeError("Mercado ainda não está pronto")
 
         asset = TConnectorAssetIdentifier()
-        asset.Ticker = ticker.encode("ascii")
+        memset(byref(asset), 0, sizeof(asset))
+        asset.Ticker = ticker  # char[N] → string, NÃO bytes
 
         ret = self._dll.GetHistoryTrades(
             byref(asset),
@@ -110,21 +106,22 @@ class ProfitService:
         )
 
     def login_healthcheck(self, timeout_sec: float = 5.0) -> bool:
-        """
-        Login só é considerado OK quando:
-        - DLL sinalizou market_state == 4
-        - GetAccountCount() > 0
-        """
         deadline = time.time() + timeout_sec
         self._accounts.clear()
 
         while time.time() < deadline:
             if not self._market_ready:
-                time.sleep(0.1)
+                log.debug(
+                    "Aguardando market_state=4 | último estado: type=%s result=%s",
+                    self._last_state_type,
+                    self._last_state_result,
+                )
+                time.sleep(0.2)
                 continue
 
             try:
                 count = self._dll.GetAccountCount()
+                self._last_account_count = count
             except Exception as exc:
                 log.error("Erro ao consultar contas: %s", exc)
                 break
@@ -146,7 +143,18 @@ class ProfitService:
                 self._logged_in = True
                 return True
 
-            time.sleep(0.2)
+            log.debug(
+                "Mercado OK, aguardando contas | GetAccountCount=%s",
+                count,
+            )
+
+            time.sleep(0.3)
+
+        log.warning(
+            "Login não confirmado | market_ready=%s accounts=%s",
+            self._market_ready,
+            self._last_account_count,
+        )
 
         self._logged_in = False
         return False
@@ -158,6 +166,9 @@ class ProfitService:
     def _register_callbacks(self):
         @WINFUNCTYPE(None, c_int, c_int)
         def state_callback(nType, nResult):
+            self._last_state_type = nType
+            self._last_state_result = nResult
+
             log.info("Estado DLL | type=%s result=%s", nType, nResult)
 
             if nType == 2 and nResult == 4:
@@ -171,7 +182,7 @@ class ProfitService:
 
             if self._dll.TranslateTrade(p_trade, byref(trade)):
                 evt = TradeEvent(
-                    ticker=asset_id.Ticker,
+                    ticker=asset_id.Ticker.rstrip(b"\x00").decode("ascii"),
                     price=trade.Price,
                     quantity=trade.Quantity,
                     timestamp_ns=time.time_ns(),
@@ -187,7 +198,7 @@ class ProfitService:
 
             if self._dll.TranslateTrade(p_trade, byref(trade)):
                 evt = TradeEvent(
-                    ticker=asset_id.Ticker,
+                    ticker=asset_id.Ticker.rstrip(b"\x00").decode("ascii"),
                     price=trade.Price,
                     quantity=trade.Quantity,
                     timestamp_ns=trade.Timestamp * 1_000_000,

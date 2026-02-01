@@ -4,6 +4,7 @@ context.py
 Application Context do pftcli.
 """
 
+import time
 import logging
 from typing import Callable
 
@@ -55,3 +56,18 @@ class AppContext:
 
     def is_connected(self) -> bool:
         return self._profit.login_healthcheck()
+
+    def wait_until_connected(
+        self,
+        timeout_sec: float = 15.0,
+        poll_interval: float = 0.2,
+    ) -> bool:
+        deadline = time.time() + timeout_sec
+
+        while time.time() < deadline:
+            if self._profit.login_healthcheck(timeout_sec=1.0):
+                return True
+            time.sleep(poll_interval)
+
+        log.error("Timeout aguardando conexão com a corretora")
+        return False
