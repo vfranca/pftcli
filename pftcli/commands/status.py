@@ -1,11 +1,17 @@
-# -*- coding: utf-8 -*-
 """
 pft status
+
+Exibe o status atual do serviço:
+- LOGIN
+- MARKET
+- ACTIVATION
 """
 
 import logging
 import click
+
 from pftcli.context import AppContext
+from pftcli.helpers.service_resolver import resolve_service
 
 log = logging.getLogger("pftcli.commands.status")
 
@@ -13,7 +19,8 @@ log = logging.getLogger("pftcli.commands.status")
 @click.command("status")
 @click.pass_obj
 def status_cmd(app_ctx: AppContext):
-    st = app_ctx.service.get_status()
+    service = resolve_service(app_ctx)
+    st = service.get_status()
 
     click.echo("STATUS")
     click.echo(f"Login       : {st.login.name}")

@@ -1,0 +1,3 @@
+"""
+Helpers compartilhados do pftcli.
+"""

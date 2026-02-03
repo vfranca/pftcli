@@ -36,6 +36,7 @@ def cli(ctx: click.Context):
 load_plugins(cli)
 
 
+# comandos core
 cli.add_command(status_cmd, name="status")
 cli.add_command(stop_cmd, name="stop")
 
