@@ -11,6 +11,7 @@ from pftcli.context import AppContext
 from pftcli.plugin_loader import load_plugins
 from pftcli.commands.status import status_cmd
 from pftcli.commands.stop import stop_cmd
+from pftcli.commands.doctor import doctor_cmd
 
 
 # inicializa logging global
@@ -39,6 +40,7 @@ load_plugins(cli)
 # comandos core
 cli.add_command(status_cmd, name="status")
 cli.add_command(stop_cmd, name="stop")
+cli.add_command(doctor_cmd, name="health")
 
 
 def main():
