@@ -64,7 +64,8 @@ def tape(app_ctx, ticker, limit, replay, replay_only):
         replay_only,
     )
 
-    app_ctx.subscribe_trades(on_trade)
+    # ✅ API correta: subscrição via service
+    app_ctx.service.subscribe_trades(on_trade)
 
     click.echo(
         f"Tape ativo | {ticker} | buffer={effective_limit}"
@@ -82,7 +83,6 @@ def tape(app_ctx, ticker, limit, replay, replay_only):
         else:
             click.echo("Replay vazio (buffer sem trades)")
 
-    # 🛑 replay-only: encerra após dump
     if replay_only:
         logger.info(
             "Tape replay-only finalizado | ticker=%s",
@@ -90,5 +90,9 @@ def tape(app_ctx, ticker, limit, replay, replay_only):
         )
         return
 
-    # mantém processo vivo (modo realtime)
-    click.get_current_context().exit_on_close = False
+    # 🟢 Mantém o comando vivo
+    try:
+        click.get_current_context().exit_on_close = False
+        click.pause(info="(Ctrl+C para encerrar)")
+    except (KeyboardInterrupt, EOFError):
+        logger.info("Tape interrompido pelo usuário | ticker=%s", ticker)

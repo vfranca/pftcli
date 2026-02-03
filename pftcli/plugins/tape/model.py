@@ -8,6 +8,7 @@ Responsável por:
 """
 
 import logging
+from typing import List
 
 logger = logging.getLogger("pftcli.tape.model")
 
@@ -23,7 +24,7 @@ class TapeModel:
     def __init__(self, ticker: str, limit: int):
         self.ticker = ticker
         self.limit = limit
-        self.buffer: list = []
+        self.buffer: List = []
 
         logger.debug(
             "TapeModel inicializado | ticker=%s limit=%s",
@@ -50,7 +51,7 @@ class TapeModel:
 
     def snapshot(self) -> list:
         """
-        Retorna uma cópia ordenada do buffer atual.
+        Retorna uma cópia do buffer atual.
         Usado para replay (buffer dump).
         """
         return list(self.buffer)

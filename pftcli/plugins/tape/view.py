@@ -19,19 +19,22 @@ class TapeView:
     def __init__(self, show_side: bool = True):
         self.show_side = show_side
 
+    def _format_ts(self, evt) -> str:
+        """
+        Compatível com timestamp (s) ou timestamp_ns.
+        """
+        if hasattr(evt, "timestamp_ns"):
+            ts = evt.timestamp_ns / 1_000_000_000
+        else:
+            ts = evt.timestamp
+
+        return datetime.fromtimestamp(ts).strftime("%H:%M:%S.%f")[:-3]
+
     def render_trade(self, evt) -> str:
         """
         Formata um TradeEvent para saída textual.
-
-        Espera que evt possua:
-        - timestamp (epoch)
-        - ticker (str)
-        - quantity (int)
-        - price (float | int)
         """
-        ts = datetime.fromtimestamp(
-            evt.timestamp
-        ).strftime("%H:%M:%S.%f")[:-3]
+        ts = self._format_ts(evt)
 
         side = "BUY" if evt.quantity > 0 else "SELL"
         qty = abs(evt.quantity)
